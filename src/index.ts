@@ -18,7 +18,7 @@ app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://cardsignal.app']
+    ? ['https://rarecheck.app']
     : '*',
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -59,7 +59,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 
 // MARK: - Start
 app.listen(PORT, () => {
-  console.log(`[CardSignal API] Running on port ${PORT} (${process.env.NODE_ENV ?? 'development'})`);
+  console.log(`[RareCheck API] Running on port ${PORT} (${process.env.NODE_ENV ?? 'development'})`);
   if (process.env.NODE_ENV === 'production') {
     startPriceCacheJob();
   }

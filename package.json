@@ -1,7 +1,7 @@
 {
-  "name": "cardsignal-api",
+  "name": "rarecheck-api",
   "version": "1.0.0",
-  "description": "CardSignal backend API — card identification and pricing",
+  "description": "RareCheck backend API — card identification and pricing",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
