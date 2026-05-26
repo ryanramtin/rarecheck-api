@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import type { Secret, SignOptions } from 'jsonwebtoken';
 
 export interface JWTPayload {
   userId: string;
@@ -15,7 +16,7 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_SECRET: Secret = process.env.JWT_SECRET!;
 
 // Strict auth — rejects unauthenticated requests
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -55,7 +56,10 @@ function extractToken(req: Request): string | null {
 }
 
 export function signToken(userId: string): string {
+  const options: SignOptions = {
+    expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn'],
+  };
   return jwt.sign({ userId }, JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    ...options,
   });
 }

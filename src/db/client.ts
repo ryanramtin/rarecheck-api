@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, QueryResultRow } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -17,7 +17,7 @@ pool.on('error', (err) => {
 
 // Typed query helper
 export const db = {
-  query: <T = Record<string, unknown>>(
+  query: <T extends QueryResultRow = QueryResultRow>(
     text: string,
     params?: unknown[]
   ) => pool.query<T>(text, params),

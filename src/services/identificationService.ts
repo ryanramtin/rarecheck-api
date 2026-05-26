@@ -41,11 +41,14 @@ interface DBPrice {
 
 // MARK: - Main Identification Entry Point
 
-export async function identifyCard(imageBase64: string): Promise<CardMatchResult[]> {
+export async function identifyCard(
+  imageBase64: string,
+  ocrHints?: { name?: string; collectorNumber?: string; setCode?: string; rawText?: string }
+): Promise<CardMatchResult[]> {
   // Step 1: Decode and parse text hints from image metadata / heuristics
   // (Full pHash computation would happen server-side with sharp; here we use
   //  text-based fuzzy search as the primary backend strategy)
-  const textHints = await extractTextHints(imageBase64);
+  const textHints = normalizeHints(ocrHints ?? await extractTextHints(imageBase64));
 
   // Step 2: Search database using full-text search on card names
   const dbResults = await searchDatabase(textHints);
@@ -93,10 +96,20 @@ async function searchDatabase(hints: { name?: string; collectorNumber?: string; 
 
 // MARK: - TCG API Fallback
 
-async function searchViaTCGAPI(hints: { name?: string }): Promise<CardMatchResult[]> {
-  if (!hints.name) return [];
+async function searchViaTCGAPI(hints: { name?: string; rawText?: string }): Promise<CardMatchResult[]> {
+  const candidates = buildNameCandidates(hints);
+  if (candidates.length === 0) return [];
 
-  const cards = await searchCards(hints.name);
+  let cards: Awaited<ReturnType<typeof searchCards>> = [];
+  let matchedCandidate = candidates[0] ?? '';
+  for (const candidate of candidates) {
+    cards = await searchCards(candidate);
+    if (cards.length > 0) {
+      matchedCandidate = candidate;
+      break;
+    }
+  }
+  if (cards.length === 0) return [];
   const matches: CardMatchResult[] = [];
 
   for (const card of cards.slice(0, 3)) {
@@ -112,7 +125,7 @@ async function searchViaTCGAPI(hints: { name?: string }): Promise<CardMatchResul
       collectorNumber: card.number,
       rarity: card.rarity ?? '',
       imageUrl: card.images.large ?? card.images.small,
-      confidence: 0.6,  // lower confidence for text-only API match
+      confidence: card.name.toLowerCase() === matchedCandidate.toLowerCase() ? 0.75 : 0.62,
       price: {
         low: price?.low ?? 0,
         mid: price?.mid ?? 0,
@@ -130,10 +143,52 @@ async function searchViaTCGAPI(hints: { name?: string }): Promise<CardMatchResul
 // The iOS client already runs Vision OCR — we expect the JSON body to include
 // textHints. If the client is old/missing them, we return empty hints.
 
-async function extractTextHints(_imageBase64: string): Promise<{ name?: string; collectorNumber?: string; setCode?: string }> {
+async function extractTextHints(_imageBase64: string): Promise<{ name?: string; collectorNumber?: string; setCode?: string; rawText?: string }> {
   // Real implementation: use Tesseract or a Vision API here
   // For now, the client sends pre-extracted OCR hints in the request body
   return {};
+}
+
+function normalizeHints(hints: { name?: string; collectorNumber?: string; setCode?: string; rawText?: string }) {
+  return {
+    name: cleanCardName(hints.name),
+    collectorNumber: cleanCollectorNumber(hints.collectorNumber),
+    setCode: hints.setCode?.trim(),
+    rawText: hints.rawText?.trim(),
+  };
+}
+
+function buildNameCandidates(hints: { name?: string; rawText?: string }): string[] {
+  const candidates = new Set<string>();
+  if (hints.name) candidates.add(hints.name);
+
+  for (const line of (hints.rawText ?? '').split(/\r?\n/)) {
+    const candidate = cleanCardName(line);
+    if (candidate) candidates.add(candidate);
+  }
+
+  return [...candidates].slice(0, 8);
+}
+
+function cleanCardName(value?: string): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/[^\p{L}\p{N}\s'.:-]/gu, ' ')
+    .replace(/\bHP\s*\d+\b/gi, ' ')
+    .replace(/\b\d{1,3}\s*\/\s*\d{1,3}\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (cleaned.length < 3 || cleaned.length > 60) return undefined;
+  if (/^\d+$/.test(cleaned)) return undefined;
+  if (/^(basic|stage\s+\d+|trainer|energy)$/i.test(cleaned)) return undefined;
+  return cleaned;
+}
+
+function cleanCollectorNumber(value?: string): string | undefined {
+  if (!value) return undefined;
+  const match = value.match(/\d{1,4}/);
+  return match?.[0];
 }
 
 // MARK: - Upsert

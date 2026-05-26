@@ -17,6 +17,7 @@ const identifySchema = Joi.object({
     name: Joi.string().max(100).optional(),
     collectorNumber: Joi.string().max(10).optional(),
     setCode: Joi.string().max(6).optional(),
+    rawText: Joi.string().max(2000).optional(),
   }).optional(),
 });
 
@@ -35,7 +36,7 @@ router.post(
     }
 
     // Merge OCR hints into identification
-    const matches = await identifyCard(value.image);
+    const matches = await identifyCard(value.image, value.ocrHints);
 
     // If OCR hints provided by iOS client, boost confidence for exact matches
     if (value.ocrHints?.name) {
