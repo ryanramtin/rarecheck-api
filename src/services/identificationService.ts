@@ -117,6 +117,9 @@ async function searchViaTCGAPI(hints: { name?: string; rawText?: string }): Prom
     const price = extractPrice(card);
     await upsertCard(card, price);
 
+    const confidence = card.name.toLowerCase() === matchedCandidate.toLowerCase() ? 0.75 : 0.62;
+    if (confidence < 0.70) continue;
+
     matches.push({
       id: card.id,
       name: card.name,
@@ -125,7 +128,7 @@ async function searchViaTCGAPI(hints: { name?: string; rawText?: string }): Prom
       collectorNumber: card.number,
       rarity: card.rarity ?? '',
       imageUrl: card.images.large ?? card.images.small,
-      confidence: card.name.toLowerCase() === matchedCandidate.toLowerCase() ? 0.75 : 0.62,
+      confidence,
       price: {
         low: price?.low ?? 0,
         mid: price?.mid ?? 0,
@@ -182,6 +185,7 @@ function cleanCardName(value?: string): string | undefined {
   if (cleaned.length < 3 || cleaned.length > 60) return undefined;
   if (/^\d+$/.test(cleaned)) return undefined;
   if (/^(basic|stage\s+\d+|trainer|energy)$/i.test(cleaned)) return undefined;
+  if (/^(basic\s+)?(grass|fire|water|lightning|psychic|fighting|darkness|metal|fairy|dragon)?\s*energy$/i.test(cleaned)) return undefined;
   return cleaned;
 }
 
