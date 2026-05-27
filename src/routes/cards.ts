@@ -74,7 +74,8 @@ router.get(
       id: string; name: string; set_name: string; set_code: string;
       collector_number: string; rarity: string; image_url: string;
     }>(
-      `SELECT id, name, set_name, set_code, collector_number, rarity, image_url
+      `SELECT id, name, set_name, set_code, collector_number, rarity,
+              COALESCE(NULLIF(image_url_hires, ''), image_url) AS image_url
        FROM cards WHERE id = $1`,
       [cardId]
     );

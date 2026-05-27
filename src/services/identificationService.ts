@@ -28,6 +28,7 @@ interface DBCard {
   collector_number: string;
   rarity: string;
   image_url: string;
+  image_url_hires: string;
   phash: bigint | null;
 }
 
@@ -207,6 +208,7 @@ async function upsertCard(
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        image_url = EXCLUDED.image_url,
+       image_url_hires = EXCLUDED.image_url_hires,
        updated_at = NOW()`,
     [card.id, card.name, card.set.name, card.set.id, card.number, card.rarity ?? '', card.images.small, card.images.large ?? '']
   );
@@ -237,7 +239,7 @@ function rowToMatch(row: DBCard & Partial<DBPrice> & { rank?: number }): CardMat
     setCode: row.set_code,
     collectorNumber: row.collector_number,
     rarity: row.rarity,
-    imageUrl: row.image_url,
+    imageUrl: row.image_url_hires || row.image_url,
     confidence,
     price: {
       low: Number(row.price_low ?? 0),
